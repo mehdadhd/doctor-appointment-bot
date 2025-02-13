@@ -1,15 +1,11 @@
 require("dotenv").config();
 const { Telegraf, Markup } = require("telegraf");
 const doctors = require("./src/doctors");
+const users = require("./src/users");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// 📌 کیبورد اصلی
-const mainKeyboard = Markup.keyboard([
-  ["📋 لیست پزشکان", "📅 رزرو نوبت"],
-]).resize();
-
-// 📌 لیست روزها و ساعت‌ها
+const userSelections = {};
 const availableDays = [
   "شنبه",
   "یکشنبه",
@@ -21,10 +17,16 @@ const availableDays = [
 ];
 const availableTimes = ["10:00", "11:00", "14:00", "16:00"];
 
-// 📌 ذخیره وضعیت انتخابی کاربر
-const userSelections = {};
+// 📌 کیبورد اصلی
+const mainKeyboard = Markup.keyboard([
+  ["📋 لیست پزشکان", "📅 رزرو نوبت"],
+  ["➕ افزودن کاربر", "👥 لیست کاربران"],
+]).resize();
 
-// 📌 پیام خوشامدگویی و نمایش کیبورد اصلی
+// 📌 کیبورد افزودن کاربر
+const addUserKeyboard = Markup.keyboard([["🔙 بازگشت به منو اصلی"]]).resize();
+
+// 📌 پیام خوشامدگویی و نمایش منوی اصلی
 bot.start((ctx) => {
   ctx.reply(
     "سلام! به ربات ثبت نوبت پزشکی خوش آمدید. 👨‍⚕️\nاز منوی زیر گزینه موردنظر را انتخاب کنید:",
@@ -41,7 +43,7 @@ bot.hears("📋 لیست پزشکان", (ctx) => {
   ctx.reply(message);
 });
 
-// 📌 شروع فرآیند رزرو نوبت
+// 📌 فرآیند رزرو نوبت
 bot.hears("📅 رزرو نوبت", (ctx) => {
   ctx.reply(
     "👨‍⚕️ لطفاً پزشک موردنظر را انتخاب کنید:",
@@ -110,7 +112,6 @@ availableTimes.forEach((time) => {
       }
     );
 
-    // حذف اطلاعات انتخاب شده برای رزرو بعدی
     delete userSelections[ctx.from.id];
   });
 });
@@ -120,35 +121,59 @@ bot.hears("🔙 بازگشت به منو اصلی", (ctx) => {
   ctx.reply("🏠 بازگشت به منو اصلی:", mainKeyboard);
 });
 
-// 📌 دکمه بازگشت به انتخاب پزشک
-bot.hears("🔙 بازگشت به انتخاب پزشک", (ctx) => {
-  ctx.reply(
-    "👨‍⚕️ لطفاً پزشک موردنظر را انتخاب کنید:",
-    Markup.keyboard([
-      ...doctors.map((doc) => [doc.name]),
-      ["🔙 بازگشت به منو اصلی"],
-    ]).resize()
-  );
+// 📌 فرآیند افزودن کاربر
+bot.hears("➕ افزودن کاربر", (ctx) => {
+  ctx.reply("📌 لطفاً نام و نام خانوادگی خود را وارد کنید:", addUserKeyboard);
+  userSelections[ctx.from.id] = { step: "waiting_for_name" };
 });
 
-// 📌 دکمه بازگشت به انتخاب روز
-bot.hears("🔙 بازگشت به انتخاب روز", (ctx) => {
-  if (!userSelections[ctx.from.id]?.doctor) {
-    return ctx.reply("❌ لطفاً ابتدا پزشک خود را انتخاب کنید.");
+// 📌 دریافت نام و درخواست شماره تلفن
+bot.on("text", (ctx) => {
+  const userStep = userSelections[ctx.from.id]?.step;
+
+  if (userStep === "waiting_for_name") {
+    userSelections[ctx.from.id].name = ctx.message.text;
+    userSelections[ctx.from.id].step = "waiting_for_phone";
+
+    ctx.reply("📞 لطفاً شماره تلفن خود را ارسال کنید:");
+  } else if (userStep === "waiting_for_phone") {
+    userSelections[ctx.from.id].phone = ctx.message.text;
+
+    // ذخیره اطلاعات کاربر
+    users.push({
+      id: ctx.from.id,
+      name: userSelections[ctx.from.id].name,
+      phone: userSelections[ctx.from.id].phone,
+    });
+
+    ctx.reply(
+      `✅ کاربر *${userSelections[ctx.from.id].name}* با شماره *${
+        userSelections[ctx.from.id].phone
+      }* ثبت شد.`,
+      {
+        parse_mode: "Markdown",
+        ...mainKeyboard,
+      }
+    );
+
+    delete userSelections[ctx.from.id];
+  }
+});
+
+// 📌 نمایش لیست کاربران
+bot.hears("👥 لیست کاربران", (ctx) => {
+  if (users.length === 0) {
+    return ctx.reply("❌ هنوز هیچ کاربری ثبت نشده است.");
   }
 
-  ctx.reply(
-    `✅ پزشک انتخابی: *${
-      userSelections[ctx.from.id].doctor.name
-    }*\n📅 لطفاً روز موردنظر را انتخاب کنید:`,
-    {
-      parse_mode: "Markdown",
-      ...Markup.keyboard([
-        ...availableDays.map((day) => [day]),
-        ["🔙 بازگشت به انتخاب پزشک"],
-      ]).resize(),
-    }
-  );
+  let message = "👥 لیست کاربران ثبت‌شده:\n\n";
+  users.forEach((user, index) => {
+    message += `#️⃣ ${index + 1}\n👤 نام: ${user.name}\n📞 تلفن: ${
+      user.phone
+    }\n\n`;
+  });
+
+  ctx.reply(message);
 });
 
 // 🚀 اجرای ربات
