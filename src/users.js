@@ -1,9 +1,3 @@
-const mongoose = require("mongoose");
+const users = [];
 
-const userSchema = new mongoose.Schema({
-  telegramId: { type: Number, required: true, unique: true },
-  name: { type: String, required: true },
-  phone: { type: String, required: true },
-});
-
-module.exports = mongoose.model("User", userSchema);
+module.exports = users;
