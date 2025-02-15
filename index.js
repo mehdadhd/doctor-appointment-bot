@@ -21,14 +21,6 @@ connectDB();
 })();
 
 bot.start(async (ctx) => {
-  const telegramId = ctx.from.id.toString();
-  let user = await User.findOne({ telegramId });
-
-  if (!user) {
-    user = new User({ telegramId, name: ctx.from.first_name });
-    await user.save();
-  }
-
   ctx.reply(
     "👋 خوش آمدید! لطفاً یکی از گزینه‌ها را انتخاب کنید:",
     Markup.keyboard([["📋 لیست پزشکان"], ["📅 نوبت‌های من"]]).resize()
@@ -36,109 +28,73 @@ bot.start(async (ctx) => {
 });
 
 bot.hears("📅 نوبت‌های من", async (ctx) => {
-  ctx.reply(
-    "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
-    Markup.keyboard([
-      ["📅 رزرو نوبت", "❌ لغو نوبت"],
-      ["🔙 بازگشت به منوی اصلی"],
-    ]).resize()
-  );
-});
+  const appointments = await Appointment.find({
+    user: await User.findOne({ telegramId: ctx.from.id.toString() }),
+  }).populate("doctor");
+  if (appointments.length === 0) {
+    return ctx.reply("❌ شما هیچ نوبتی ندارید!");
+  }
 
-bot.hears("🔙 بازگشت به منوی اصلی", async (ctx) => {
-  ctx.reply(
-    "👋 خوش آمدید! لطفاً یکی از گزینه‌ها را انتخاب کنید:",
-    Markup.keyboard([["📋 لیست پزشکان"], ["📅 نوبت‌های من"]]).resize()
-  );
+  let message = "📅 نوبت‌های شما:\n";
+  appointments.forEach((app, index) => {
+    message += `${index + 1}. 👨‍⚕️ دکتر ${app.doctor.name} - 📅 ${
+      app.date.toISOString().split("T")[0]
+    } - ⏰ ${app.time}\n`;
+  });
+  ctx.reply(message);
 });
 
 bot.hears("📅 رزرو نوبت", async (ctx) => {
   const doctors = await Doctor.find();
-  if (doctors.length === 0) {
-    return ctx.reply("❌ هیچ پزشکی ثبت نشده است!");
-  }
-
   ctx.reply(
-    "لطفاً یک پزشک را انتخاب کنید:",
-    Markup.keyboard(doctors.map((doc) => [doc.name])).resize()
+    "👨‍⚕️ لطفاً یک پزشک را انتخاب کنید:",
+    Markup.keyboard([
+      ...doctors.map((doc) => [doc.name]),
+      ["🔙 بازگشت"],
+    ]).resize()
   );
-
   bot.on("text", async (ctx) => {
     const doctor = await Doctor.findOne({ name: ctx.message.text });
-    if (!doctor) {
-      return ctx.reply("❌ پزشک مورد نظر یافت نشد!");
-    }
+    if (!doctor) return;
 
-    ctx.reply("لطفاً روز مورد نظر خود را ارسال کنید (مثلاً 2025-02-20):");
+    ctx.reply(
+      "📅 لطفاً یک روز را انتخاب کنید:",
+      Markup.keyboard([
+        ["شنبه", "یکشنبه", "دوشنبه"],
+        ["سه‌شنبه", "چهارشنبه", "پنج‌شنبه"],
+        ["جمعه", "🔙 بازگشت"],
+      ]).resize()
+    );
     bot.on("text", async (ctx) => {
-      const date = new Date(ctx.message.text);
-      if (isNaN(date.getTime())) {
-        return ctx.reply("❌ فرمت تاریخ اشتباه است!");
-      }
+      const day = ctx.message.text;
 
-      ctx.reply("لطفاً ساعت مورد نظر را ارسال کنید (مثلاً 14:30):");
+      ctx.reply(
+        "⏰ لطفاً ساعت مورد نظر را انتخاب کنید:",
+        Markup.keyboard([
+          ["08:00", "09:00", "10:00"],
+          ["11:00", "12:00", "13:00"],
+          ["14:00", "15:00", "16:00"],
+          ["🔙 بازگشت"],
+        ]).resize()
+      );
       bot.on("text", async (ctx) => {
         const time = ctx.message.text;
 
         const newAppointment = new Appointment({
           user: await User.findOne({ telegramId: ctx.from.id.toString() }),
           doctor: doctor,
-          date: date,
+          date: new Date(),
           time: time,
           status: "pending",
         });
         await newAppointment.save();
 
         ctx.reply(
-          `✅ نوبت شما ثبت شد!\n\n👨‍⚕️ پزشک: ${doctor.name}\n📅 تاریخ: ${
-            date.toISOString().split("T")[0]
-          }\n⏰ ساعت: ${time}`
+          `✅ نوبت شما ثبت شد!\n\n👨‍⚕️ پزشک: ${doctor.name}\n📅 روز: ${day}\n⏰ ساعت: ${time}`
         );
       });
     });
   });
-});
-
-bot.hears("❌ لغو نوبت", async (ctx) => {
-  ctx.reply("🔢 لطفاً شماره نوبتی که می‌خواهید لغو کنید را وارد کنید:");
-
-  bot.on("text", async (ctx) => {
-    const user = await User.findOne({
-      telegramId: ctx.from.id.toString(),
-    }).populate("appointments");
-    const appointmentIndex = parseInt(ctx.message.text) - 1;
-
-    if (
-      isNaN(appointmentIndex) ||
-      appointmentIndex < 0 ||
-      appointmentIndex >= user.appointments.length
-    ) {
-      return ctx.reply("❌ شماره نوبت نامعتبر است!");
-    }
-
-    const appointment = user.appointments[appointmentIndex];
-    appointment.status = "canceled";
-    await appointment.save();
-
-    ctx.reply(
-      `✅ نوبت شما با دکتر ${appointment.doctor.name} در تاریخ ${
-        appointment.date.toISOString().split("T")[0]
-      } لغو شد!`
-    );
-  });
-});
-
-bot.hears("📋 لیست پزشکان", async (ctx) => {
-  const doctors = await Doctor.find();
-  if (doctors.length === 0) {
-    return ctx.reply("❌ هیچ پزشکی ثبت نشده است!");
-  }
-
-  let message = "🩺 لیست پزشکان:\n";
-  doctors.forEach((doc, index) => {
-    message += `${index + 1}. ${doc.name} - ${doc.specialty}\n`;
-  });
-  ctx.reply(message);
 });
 
 bot.launch();
