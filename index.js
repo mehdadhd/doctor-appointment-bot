@@ -1,172 +1,134 @@
 require("dotenv").config();
 const { Telegraf, Markup } = require("telegraf");
-const doctors = require("./src/doctors");
-const users = require("./src/users");
+const connectDB = require("./src/database");
+const User = require("./src/models/User");
+const Doctor = require("./src/models/Doctor");
+const Appointment = require("./src/models/Appointment");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
-const userSelections = {};
-const availableDays = [
-  "شنبه",
-  "یکشنبه",
-  "دوشنبه",
-  "سه‌شنبه",
-  "چهارشنبه",
-  "پنجشنبه",
-  "جمعه",
-];
-const availableTimes = ["10:00", "11:00", "14:00", "16:00"];
+connectDB();
 
-const mainKeyboard = Markup.keyboard([
-  ["📋 لیست پزشکان"],
-  ["📅 رزرو نوبت"],
-  ["👥 لیست کاربران"],
-]).resize();
+bot.start(async (ctx) => {
+  const telegramId = ctx.from.id.toString();
+  let user = await User.findOne({ telegramId });
 
-const usersKeyboard = Markup.keyboard([
-  ["➕ افزودن کاربر"],
-  ["🔙 بازگشت به منو اصلی"],
-]).resize();
+  if (!user) {
+    user = new User({ telegramId, name: ctx.from.first_name });
+    await user.save();
+  }
 
-bot.start((ctx) => {
-  ctx.reply("سلام! به ربات ثبت نوبت پزشکی خوش آمدید. 👨‍⚕️", mainKeyboard);
+  ctx.reply(
+    "👋 خوش آمدید! لطفاً یکی از گزینه‌ها را انتخاب کنید:",
+    Markup.keyboard([
+      ["📋 لیست پزشکان"],
+      ["📅 رزرو نوبت"],
+      ["📅 نوبت‌های من"],
+      ["❌ لغو نوبت"],
+      ["👥 لیست کاربران"],
+    ]).resize()
+  );
 });
 
-bot.hears("📋 لیست پزشکان", (ctx) => {
-  let message = "👨‍⚕️ لیست پزشکان:\n\n";
-  doctors.forEach((doc) => {
-    message += `🩺 ${doc.name} - تخصص: ${doc.specialty}\n`;
+bot.hears("📋 لیست پزشکان", async (ctx) => {
+  const doctors = await Doctor.find();
+  if (doctors.length === 0) {
+    return ctx.reply("❌ هیچ پزشکی ثبت نشده است!");
+  }
+
+  let message = "🩺 لیست پزشکان:\n";
+  doctors.forEach((doc, index) => {
+    message += `${index + 1}. ${doc.name} - ${doc.specialty}\n`;
   });
   ctx.reply(message);
 });
 
-bot.hears("📅 رزرو نوبت", (ctx) => {
-  ctx.reply(
-    "👨‍⚕️ لطفاً پزشک موردنظر را انتخاب کنید:",
-    Markup.keyboard([
-      ...doctors.map((doc) => [doc.name]),
-      ["🔙 بازگشت به منو اصلی"],
-    ]).resize()
-  );
-});
-
-doctors.forEach((doc) => {
-  bot.hears(doc.name, (ctx) => {
-    userSelections[ctx.from.id] = { doctor: doc };
-    ctx.reply(
-      `✅ پزشک انتخابی: *${doc.name}*\n📅 لطفاً روز موردنظر را انتخاب کنید:`,
-      {
-        parse_mode: "Markdown",
-        ...Markup.keyboard([
-          ...availableDays.map((day) => [day]),
-          ["🔙 بازگشت به انتخاب پزشک"],
-        ]).resize(),
-      }
-    );
-  });
-});
-
-bot.hears("🔙 بازگشت به انتخاب پزشک", (ctx) => {
-  ctx.reply(
-    "👨‍⚕️ لطفاً پزشک موردنظر را انتخاب کنید:",
-    Markup.keyboard([
-      ...doctors.map((doc) => [doc.name]),
-      ["🔙 بازگشت به منو اصلی"],
-    ]).resize()
-  );
-});
-
-availableDays.forEach((day) => {
-  bot.hears(day, (ctx) => {
-    if (!userSelections[ctx.from.id]?.doctor) {
-      return ctx.reply("❌ لطفاً ابتدا پزشک خود را انتخاب کنید.");
+bot.hears("📅 رزرو نوبت", async (ctx) => {
+  ctx.reply("لطفاً نام پزشک مورد نظر را ارسال کنید:");
+  bot.on("text", async (ctx) => {
+    const doctor = await Doctor.findOne({ name: ctx.message.text });
+    if (!doctor) {
+      return ctx.reply("❌ پزشک مورد نظر یافت نشد!");
     }
-    userSelections[ctx.from.id].day = day;
-    ctx.reply(`📅 روز انتخابی: *${day}*\n⏳ لطفاً یک ساعت انتخاب کنید:`, {
-      parse_mode: "Markdown",
-      ...Markup.keyboard([
-        ...availableTimes.map((time) => [time]),
-        ["🔙 بازگشت به انتخاب روز"],
-      ]).resize(),
+
+    ctx.reply("لطفاً تاریخ نوبت را به فرمت YYYY-MM-DD ارسال کنید:");
+    bot.on("text", async (ctx) => {
+      const date = new Date(ctx.message.text);
+      if (isNaN(date.getTime())) {
+        return ctx.reply("❌ فرمت تاریخ اشتباه است!");
+      }
+
+      const newAppointment = new Appointment({
+        user: await User.findOne({ telegramId: ctx.from.id.toString() }),
+        doctor: doctor,
+        date: date,
+        status: "pending",
+      });
+      await newAppointment.save();
+      ctx.reply("✅ نوبت شما با موفقیت ثبت شد!");
     });
   });
 });
 
-bot.hears("🔙 بازگشت به انتخاب روز", (ctx) => {
-  if (!userSelections[ctx.from.id]?.doctor) {
-    return ctx.reply("❌ لطفاً ابتدا پزشک خود را انتخاب کنید.");
+bot.hears("📅 نوبت‌های من", async (ctx) => {
+  const user = await User.findOne({
+    telegramId: ctx.from.id.toString(),
+  }).populate("appointments");
+
+  if (!user || user.appointments.length === 0) {
+    return ctx.reply("❌ شما هیچ نوبتی ندارید!");
   }
-  ctx.reply(
-    `✅ پزشک انتخابی: *${
-      userSelections[ctx.from.id].doctor.name
-    }*\n📅 لطفاً روز موردنظر را انتخاب کنید:`,
-    {
-      parse_mode: "Markdown",
-      ...Markup.keyboard([
-        ...availableDays.map((day) => [day]),
-        ["🔙 بازگشت به انتخاب پزشک"],
-      ]).resize(),
-    }
-  );
+
+  let message = "📅 نوبت‌های شما:\n";
+  for (const [index, appointment] of user.appointments.entries()) {
+    const doctor = await Doctor.findById(appointment.doctor);
+    message += `${index + 1}. دکتر ${doctor.name} - تاریخ: ${
+      appointment.date.toISOString().split("T")[0]
+    } - وضعیت: ${appointment.status}\n`;
+  }
+
+  ctx.reply(message);
 });
 
-availableTimes.forEach((time) => {
-  bot.hears(time, (ctx) => {
+bot.hears("❌ لغو نوبت", async (ctx) => {
+  ctx.reply("🔢 لطفاً شماره نوبتی که می‌خواهید لغو کنید را وارد کنید:");
+
+  bot.on("text", async (ctx) => {
+    const user = await User.findOne({
+      telegramId: ctx.from.id.toString(),
+    }).populate("appointments");
+    const appointmentIndex = parseInt(ctx.message.text) - 1;
+
     if (
-      !userSelections[ctx.from.id]?.doctor ||
-      !userSelections[ctx.from.id]?.day
+      isNaN(appointmentIndex) ||
+      appointmentIndex < 0 ||
+      appointmentIndex >= user.appointments.length
     ) {
-      return ctx.reply("❌ لطفاً ابتدا پزشک و روز موردنظر را انتخاب کنید.");
+      return ctx.reply("❌ شماره نوبت نامعتبر است!");
     }
-    userSelections[ctx.from.id].time = time;
-    const { doctor, day } = userSelections[ctx.from.id];
+
+    const appointment = user.appointments[appointmentIndex];
+    appointment.status = "canceled";
+    await appointment.save();
+
     ctx.reply(
-      `✅ **نوبت شما با موفقیت ثبت شد!**\n\n👨‍⚕️ *دکتر:* ${doctor.name}\n📅 *روز:* ${day}\n⏳ *زمان:* ${time}\n\n📌 لطفاً رأس ساعت مراجعه کنید.`,
-      {
-        parse_mode: "Markdown",
-        ...mainKeyboard,
-      }
+      `✅ نوبت شما با دکتر ${appointment.doctor.name} در تاریخ ${
+        appointment.date.toISOString().split("T")[0]
+      } لغو شد!`
     );
-    delete userSelections[ctx.from.id];
   });
 });
 
-bot.hears("🔙 بازگشت به منو اصلی", (ctx) => {
-  ctx.reply("🏠 بازگشت به منو اصلی:", mainKeyboard);
-});
-
-bot.hears("👥 لیست کاربران", (ctx) => {
-  ctx.reply("👥 مدیریت کاربران:", usersKeyboard);
-});
-
-bot.hears("➕ افزودن کاربر", (ctx) => {
-  ctx.reply("📌 لطفاً نام و نام خانوادگی خود را وارد کنید:");
-  userSelections[ctx.from.id] = { step: "waiting_for_name" };
-});
-
-bot.on("text", (ctx) => {
-  const userStep = userSelections[ctx.from.id]?.step;
-  if (userStep === "waiting_for_name") {
-    userSelections[ctx.from.id].name = ctx.message.text;
-    userSelections[ctx.from.id].step = "waiting_for_phone";
-    ctx.reply("📞 لطفاً شماره تلفن خود را ارسال کنید:");
-  } else if (userStep === "waiting_for_phone") {
-    userSelections[ctx.from.id].phone = ctx.message.text;
-    users.push({
-      id: ctx.from.id,
-      name: userSelections[ctx.from.id].name,
-      phone: userSelections[ctx.from.id].phone,
-    });
-    ctx.reply(
-      `✅ کاربر *${userSelections[ctx.from.id].name}* با شماره *${
-        userSelections[ctx.from.id].phone
-      }* ثبت شد.`,
-      {
-        parse_mode: "Markdown",
-        ...usersKeyboard,
-      }
-    );
-    delete userSelections[ctx.from.id];
+bot.hears("👥 لیست کاربران", async (ctx) => {
+  const users = await User.find();
+  if (users.length === 0) {
+    return ctx.reply("❌ هیچ کاربری ثبت نشده است!");
   }
+
+  let message = "👥 لیست کاربران:\n";
+  users.forEach((user, index) => {
+    message += `${index + 1}. ${user.name} (ID: ${user.telegramId})\n`;
+  });
+  ctx.reply(message);
 });
 
 bot.launch();
