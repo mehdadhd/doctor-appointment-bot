@@ -1,18 +1,7 @@
-module.exports = [
-    {
-      name: "دکتر احمدی",
-      specialty: "متخصص قلب"
-    },
-    {
-      name: "دکتر محمدی",
-      specialty: "متخصص اطفال"
-    },
-    {
-      name: "دکتر رضایی",
-      specialty: "متخصص ارتوپدی"
-    },
-    {
-      name: "دکتر حسینی",
-      specialty: "دندانپزشک"
-    }
-  ];
+const doctors = [
+  { id: 1, name: "دکتر علی رضایی", specialty: "قلب و عروق" },
+  { id: 2, name: "دکتر سارا محمدی", specialty: "گوش، حلق و بینی" },
+  { id: 3, name: "دکتر مهدی کاظمی", specialty: "پوست و مو" },
+];
+
+module.exports = doctors;

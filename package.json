@@ -1,14 +1,17 @@
 {
   "name": "doctor-appointment-bot",
   "version": "1.0.0",
-  "description": "A Telegram bot for doctor appointment management",
-  "main": "src/bot.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node src/bot.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
   "dependencies": {
-    "dotenv": "^16.0.0",
-    "mongoose": "^6.0.0",
-    "telegraf": "^4.0.0"
+    "dotenv": "^16.4.7",
+    "mongoose": "^8.10.1",
+    "telegraf": "^4.16.3"
   }
 }
