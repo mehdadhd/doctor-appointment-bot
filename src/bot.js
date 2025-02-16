@@ -1,12 +1,20 @@
 require("dotenv").config();
 const { Telegraf, Markup } = require("telegraf");
-const { connectDB } = require('./config/db');
-const User = require('./models/User');
-const doctors = require("./doctors"); // فرض می‌کنیم این فایل وجود دارد
+const { connectDB } = require("./config/db");
+const User = require("./models/User");
+const doctors = require("./doctors");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const userSelections = {};
-const availableDays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+const availableDays = [
+  "شنبه",
+  "یکشنبه",
+  "دوشنبه",
+  "سه‌شنبه",
+  "چهارشنبه",
+  "پنجشنبه",
+  "جمعه",
+];
 const availableTimes = ["10:00", "11:00", "14:00", "16:00"];
 
 const mainKeyboard = Markup.keyboard([
@@ -92,7 +100,9 @@ bot.hears("🔙 بازگشت به انتخاب روز", (ctx) => {
     return ctx.reply("❌ لطفاً ابتدا پزشک خود را انتخاب کنید.");
   }
   ctx.reply(
-    `✅ پزشک انتخابی: *${userSelections[ctx.from.id].doctor.name}*\n📅 لطفاً روز موردنظر را انتخاب کنید:`,
+    `✅ پزشک انتخابی: *${
+      userSelections[ctx.from.id].doctor.name
+    }*\n📅 لطفاً روز موردنظر را انتخاب کنید:`,
     {
       parse_mode: "Markdown",
       ...Markup.keyboard([
@@ -140,7 +150,9 @@ bot.hears("👥 لیست کاربران", (ctx) => {
     }
     let message = "👥 لیست کاربران:\n\n";
     users.forEach((user, index) => {
-      message += `${index + 1}. ${user.name} - کد ملی: ${user.nationalId} - تلفن: ${user.phone}\n`;
+      message += `${index + 1}. ${user.name} - کد ملی: ${
+        user.nationalId
+      } - تلفن: ${user.phone}\n`;
     });
     ctx.reply(message);
   });
@@ -175,7 +187,7 @@ bot.on("text", (ctx) => {
     const newUser = new User({
       name: userSelections[ctx.from.id].name,
       nationalId: userSelections[ctx.from.id].nationalId,
-      phone: phone
+      phone: phone,
     });
 
     newUser.save((err, user) => {
@@ -183,7 +195,9 @@ bot.on("text", (ctx) => {
         ctx.reply("خطا در ثبت کاربر جدید.");
         return console.error(err);
       }
-      ctx.reply(`✅ کاربر *${user.name}* با موفقیت ثبت شد!`, { parse_mode: "Markdown" });
+      ctx.reply(`✅ کاربر *${user.name}* با موفقیت ثبت شد!`, {
+        parse_mode: "Markdown",
+      });
       delete userSelections[ctx.from.id];
       ctx.reply("👥 مدیریت کاربران:", usersKeyboard);
     });
