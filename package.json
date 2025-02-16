@@ -1,50 +1,17 @@
 {
   "name": "doctor-appointment-bot",
   "version": "1.0.0",
-  "description": "<h1 align=\"center\">Hi 👋, I'm mehrdad</h1>\r <h3 align=\"center\">A passionate frontend developer from Iran</h3>",
   "main": "index.js",
-  "dependencies": {
-    "abort-controller": "^3.0.0",
-    "bson": "^6.10.2",
-    "buffer-alloc": "^1.2.0",
-    "buffer-alloc-unsafe": "^1.1.0",
-    "buffer-fill": "^1.0.0",
-    "debug": "^4.4.0",
-    "dotenv": "^16.4.7",
-    "event-target-shim": "^5.0.1",
-    "kareem": "^2.6.3",
-    "memory-pager": "^1.5.0",
-    "mongodb": "^6.13.0",
-    "mongodb-connection-string-url": "^3.0.2",
-    "mongoose": "^8.10.1",
-    "mpath": "^0.9.0",
-    "mquery": "^5.0.0",
-    "mri": "^1.2.0",
-    "ms": "^2.1.3",
-    "node-fetch": "^3.3.2",
-    "p-timeout": "^4.1.0",
-    "punycode": "^2.3.1",
-    "safe-compare": "^1.1.4",
-    "sandwich-stream": "^2.0.2",
-    "sift": "^17.1.3",
-    "sparse-bitfield": "^3.0.3",
-    "telegraf": "^4.16.3",
-    "tr46": "^0.0.3",
-    "webidl-conversions": "^3.0.1",
-    "whatwg-url": "^5.0.0"
-  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/mehdadhd/doctor-appointment-bot.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/mehdadhd/doctor-appointment-bot/issues"
-  },
-  "homepage": "https://github.com/mehdadhd/doctor-appointment-bot#readme"
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "mongoose": "^8.10.1",
+    "telegraf": "^4.16.3"
+  }
 }
