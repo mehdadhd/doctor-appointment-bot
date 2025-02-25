@@ -1,28 +1,43 @@
-require("dotenv").config();
-const TelegramBot = require("node-telegram-bot-api");
+const bot = require("./botInstance");
+const { isUserMember } = require("./membership");
+const { getJoinMessage } = require("./messages");
 
-// دریافت توکن از متغیر محیطی
-const token = process.env.TELEGRAM_BOT_TOKEN;
+// ⚡️ رویداد /start
+bot.onText(/\/start/, async (msg) => {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
 
-// ایجاد نمونه‌ای از ربات
-const bot = new TelegramBot(token, { polling: true });
+  let isMember = await isUserMember(userId);
 
-// پاسخ به دستورات مختلف
-bot.onText(/\/start/, (msg) => {
-  bot.sendMessage(msg.chat.id, `سلام ${msg.from.first_name}! خوش اومدی 😊`);
-});
-
-bot.onText(/\/help/, (msg) => {
-  bot.sendMessage(
-    msg.chat.id,
-    "دستورات موجود:\n/start - شروع ربات\n/help - راهنما"
-  );
-});
-
-bot.on("message", (msg) => {
-  if (msg.text.toLowerCase() === "سلام") {
-    bot.sendMessage(msg.chat.id, "سلام! چطوری؟ 😊");
+  if (isMember) {
+    bot.sendMessage(
+      chatId,
+      `🎉 خوش آمدید ${msg.from.first_name}! شما اکنون می‌توانید از خدمات ربات استفاده کنید.`
+    );
+  } else {
+    let joinMessage = getJoinMessage();
+    bot.sendMessage(chatId, joinMessage.text, joinMessage.options);
   }
 });
 
-console.log("ربات فعال شد...");
+// ⚡️ رویداد کلیک روی دکمه بررسی عضویت
+bot.on("callback_query", async (query) => {
+  const chatId = query.message.chat.id;
+  const userId = query.from.id;
+
+  if (query.data === "check_membership") {
+    let isMember = await isUserMember(userId);
+
+    if (isMember) {
+      bot.sendMessage(
+        chatId,
+        `🎉 تبریک! شما عضو کانال‌ها هستید و می‌توانید از خدمات ربات استفاده کنید.`
+      );
+    } else {
+      let joinMessage = getJoinMessage();
+      bot.sendMessage(chatId, joinMessage.text, joinMessage.options);
+    }
+  }
+});
+
+console.log("✅ ربات فعال شد...");
