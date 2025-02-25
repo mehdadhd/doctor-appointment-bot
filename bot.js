@@ -65,10 +65,21 @@ bot.on("callback_query", async (query) => {
   }
 });
 
-// ⚡️ مدیریت دکمه‌های منو
-bot.on("message", (msg) => {
+// ⚡️ مدیریت دکمه‌های منو (فقط برای کاربران عضو فعال است)
+bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
+  const userId = msg.from.id;
   const userMessage = msg.text;
+
+  let status = await getUserMembershipStatus(userId);
+  if (!status[0] || !status[1]) {
+    let joinMessage = getJoinMessage(status);
+    return bot.sendMessage(
+      chatId,
+      "⚠ برای استفاده از دکمه‌ها ابتدا باید در کانال‌ها عضو شوید.",
+      joinMessage.options
+    );
+  }
 
   if (userMessage === "📝 لیست کاربران") {
     bot.sendMessage(
