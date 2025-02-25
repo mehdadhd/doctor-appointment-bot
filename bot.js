@@ -1,6 +1,5 @@
 const bot = require("./botInstance");
 const { getUserMembershipStatus } = require("./membership");
-const { getJoinMessage } = require("./messages");
 
 // ⚡️ منوهای کیبوردی
 const mainMenu = {
