@@ -1,29 +1,29 @@
 const { CHANNELS } = require("./config");
 
-// 🎯 ارسال پیام عضویت اجباری بدون لینک مستقیم کانال
-function getJoinMessage() {
-  return {
-    text: "📢 برای استفاده از ربات، ابتدا در کانال‌های زیر عضو شوید، سپس دکمه «بررسی عضویت» را بزنید:",
-    options: {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: "📢 عضویت در کانال 1",
-              url: `https://t.me/${CHANNELS[0].substring(1)}`,
+// 🎯 پیام عضویت اجباری بر اساس وضعیت عضویت
+function getJoinMessage(status) {
+    let text = "📢 برای استفاده از ربات، ابتدا در کانال‌های زیر عضو شوید و سپس دکمه «بررسی عضویت» را بزنید:";
+    let buttons = [];
+
+    if (!status[0]) {
+        buttons.push([{ text: "📢 عضویت در کانال 1", url: `https://t.me/${CHANNELS[0].substring(1)}` }]);
+    }
+    if (!status[1]) {
+        buttons.push([{ text: "📢 عضویت در کانال 2", url: `https://t.me/${CHANNELS[1].substring(1)}` }]);
+    }
+
+    buttons.push([{ text: "✅ بررسی مجدد عضویت", callback_data: "check_membership" }]);
+
+    return {
+        text,
+        options: {
+            reply_markup: {
+                inline_keyboard: buttons,
             },
-            {
-              text: "📢 عضویت در کانال 2",
-              url: `https://t.me/${CHANNELS[1].substring(1)}`,
-            },
-          ],
-          [{ text: "✅ بررسی عضویت", callback_data: "check_membership" }],
-        ],
-      },
-    },
-  };
+        },
+    };
 }
 
 module.exports = {
-  getJoinMessage,
+    getJoinMessage,
 };
