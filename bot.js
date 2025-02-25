@@ -1,5 +1,6 @@
 const bot = require("./botInstance");
-
+const { getUserMembershipStatus } = require("./membership");
+const { getJoinMessage } = require("./messages");
 // ⚡️ منوی اصلی که فقط دکمه "لیست کاربران" را دارد
 const mainMenu = {
   reply_markup: {
