@@ -1,5 +1,6 @@
 const bot = require("./botInstance");
 const { getUserMembershipStatus } = require("./membership");
+const { getJoinMessage } = require("./messages");
 
 // ⚡️ منوهای کیبوردی
 const mainMenu = {
@@ -55,11 +56,11 @@ bot.on("callback_query", async (query) => {
       );
     } else {
       let joinMessage = getJoinMessage(status);
-      bot.sendMessage(
-        chatId,
-        "⚠ هنوز در برخی از کانال‌ها عضو نشده‌اید. لطفاً عضویت خود را کامل کنید:",
-        joinMessage.options
-      );
+      bot.editMessageText(joinMessage.text, {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        reply_markup: joinMessage.options.reply_markup,
+      });
     }
   }
 });
